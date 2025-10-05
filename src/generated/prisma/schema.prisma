@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  nom          String
+  prenom       String
+  email        String   @unique
+  mot_de_passe String
+  role         Role
+  specialite   String?
+  telephone    String?  @unique
+  photo        String?
+  cree_le      DateTime @default(now())
+
+  // Relations
+  patientProfil   Patient?       @relation("UserProfile")
+  patients        Patient[]      @relation("MedecinPatients")
+  rendezVous      RendezVous[]   @relation("MedecinRendezVous")
+  fileAttente     FileAttente[]  @relation("MedecinFileAttente")
+  consultations   Consultation[] @relation("MedecinConsultations")
+  messagesEnvoyes Message[]      @relation("ExpediteurMessages")
+  messagesRecus   Message[]      @relation("DestinataireMessages")
+}
+
+model Patient {
+  id                       Int       @id @default(autoincrement())
+  user_id                  Int?      @unique
+  numero_patient           String    @unique
+  nom                      String
+  prenom                   String
+  telephone                String?
+  date_naissance           DateTime
+  genre                    Genre
+  medecin_id               Int?
+  condition_medicale       String
+  photo                    String?
+  consultation             DateTime?
+  consultation_specialisee DateTime?
+  ct_sim                   DateTime?
+  debut_traitement         DateTime?
+  fin_traitement           DateTime?
+  rdv_traitement           DateTime?
+  technique_irradiation    String?
+  dose_totale              Float?
+  dose_fraction            Float?
+  cree_le                  DateTime  @default(now())
+
+  // Relations
+  user          User?            @relation("UserProfile", fields: [user_id], references: [id])
+  medecin       User?            @relation("MedecinPatients", fields: [medecin_id], references: [id])
+  dossier       DossierMedical[]
+  rendezVous    RendezVous[]
+  fileAttente   FileAttente[]
+  consultations Consultation[]
+}
+
+model DossierMedical {
+  id           Int      @id @default(autoincrement())
+  patient_id   Int
+  diagnostic   String
+  traitement   String?
+  note_medecin String?
+  date_maj     DateTime @default(now())
+
+  patient Patient @relation(fields: [patient_id], references: [id])
+}
+
+model RendezVous {
+  id         Int      @id @default(autoincrement())
+  patient_id Int
+  medecin_id Int
+  type_rdv   TypeRDV
+  date_rdv   DateTime
+
+  patient Patient @relation(fields: [patient_id], references: [id])
+  medecin User    @relation("MedecinRendezVous", fields: [medecin_id], references: [id])
+}
+
+model FileAttente {
+  id         Int               @id @default(autoincrement())
+  patient_id Int
+  medecin_id Int
+  statut     StatutFileAttente @default(EN_ATTENTE)
+  ordre      Int
+  ajoute_le  DateTime          @default(now())
+
+  patient Patient @relation(fields: [patient_id], references: [id])
+  medecin User    @relation("MedecinFileAttente", fields: [medecin_id], references: [id])
+}
+
+model Consultation {
+  id                Int      @id @default(autoincrement())
+  patient_id        Int
+  medecin_id        Int?
+  note              String?
+  date_consultation DateTime @default(now())
+
+  patient Patient @relation(fields: [patient_id], references: [id])
+  medecin User?   @relation("MedecinConsultations", fields: [medecin_id], references: [id])
+}
+
+model Message {
+  id              Int      @id @default(autoincrement())
+  expediteur_id   Int
+  destinataire_id Int
+  message         String
+  vu              Boolean  @default(false)
+  envoye_le       DateTime @default(now())
+
+  expediteur   User @relation("ExpediteurMessages", fields: [expediteur_id], references: [id])
+  destinataire User @relation("DestinataireMessages", fields: [destinataire_id], references: [id])
+}
+
+//
+// ENUMS (Types personnalisés)
+//
+
+enum Role {
+  admin
+  medecin
+}
+
+enum Genre {
+  Homme
+  Femme
+  Autre
+}
+
+enum StatutFileAttente {
+  EN_ATTENTE
+  EN_COURS
+  TERMINE
+}
+
+enum TypeRDV {
+  Consultation
+  Consultation_specialisee
+  CT_Sim
+  Debut_traitement
+  Fin_traitement
+  Rendez_vous_de_consultation_de_traitement
+}
